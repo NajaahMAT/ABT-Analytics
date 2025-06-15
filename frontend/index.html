@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ABT Analytics</title>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- External stylesheet -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <header><h1>ABT Analytics</h1></header>
+
+  <!-- Country‑level revenue table with pagination -->
+  <section>
+    <h2>Country‑Level Revenue</h2>
+
+    <table id="countryTable">
+      <thead>
+        <tr>
+          <th rowspan="2">Country</th>
+          <th colspan="3">Products&nbsp;(Revenue – Txns)</th>
+          <th rowspan="2">Total Revenue</th>
+        </tr>
+        <tr>
+          <th>Product</th>
+          <th>Revenue</th>
+          <th>Count&nbsp;Tx</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="pager">
+      <button id="prevBtn">Prev</button>
+      <span id="pageInfo">1&nbsp;/&nbsp;1</span>
+      <button id="nextBtn">Next</button>
+    </div>
+  </section>
+
+  <!-- Charts -->
+  <section><h2>Top 20 Products</h2><canvas id="productsChart"></canvas></section>
+  <section><h2>Monthly Sales Volume</h2><canvas id="monthlyChart"></canvas></section>
+  <section><h2>Top 30 Regions by Revenue</h2><canvas id="regionsChart"></canvas></section>
+
+<script>
+const apiBase   = "http://localhost:8080/api";
+const pageSize  = 20;     // default; real size comes from API
+const prodLimit = 10;
+
+let page = 1;
+let pages = 1;            // total pages – comes from API
+
+// helpers ----------------------------------------------------
+async function fetchJSON(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw Error(await res.text());
+  return res.json();
+}
+
+// DOM refs ---------------------------------------------------
+const tblBody  = document.querySelector('#countryTable tbody');
+const pageInfo = document.getElementById('pageInfo');
+const prevBtn  = document.getElementById('prevBtn');
+const nextBtn  = document.getElementById('nextBtn');
+
+// render one page -------------------------------------------
+async function loadCountryPage(p) {
+  const url = `${apiBase}/revenue/country/summary?page=${p}&size=${pageSize}&products=${prodLimit}`;
+  try {
+    const res = await fetchJSON(url);
+
+    /* ---------- map API fields here ---------- */
+    const items = res.data  ?? res.items ?? res.rows ?? res;      // country rows
+    page        = res.page  ?? p;
+    const size  = res.size  ?? pageSize;
+    pages       = res.pages ?? Math.ceil((res.total ?? items.length) / size);
+    /* ----------------------------------------- */
+
+    tblBody.innerHTML = items.map(c => c.products.map((prod, idx) => `
+      <tr>
+        ${idx === 0 ? `<td rowspan="${c.products.length}">${c.country}</td>` : ''}
+
+        <td>${prod.product_name}</td>
+        <td>$${prod.total_revenue.toFixed(2)}</td>
+        <td>${prod.transaction_count}</td>
+
+        ${idx === 0 ? `<td rowspan="${c.products.length}">$${c.country_total_revenue.toFixed(2)}</td>` : ''}
+      </tr>
+    `).join('')).join('');
+
+    updatePager();
+  } catch (err) {
+    tblBody.innerHTML = `<tr><td colspan="5">Error: ${err.message}</td></tr>`;
+    pages = page;   // disable next
+    updatePager();
+  }
+}
+
+// pager state / buttons -------------------------------------
+function updatePager() {
+  pageInfo.textContent = `${page} / ${pages}`;
+  prevBtn.disabled = page <= 1;
+  nextBtn.disabled = page >= pages;
+}
+
+// button handlers -------------------------------------------
+prevBtn.onclick = () => page > 1     && loadCountryPage(page - 1);
+nextBtn.onclick = () => page < pages && loadCountryPage(page + 1);
+
+// first load
+loadCountryPage(1);
+
+// ---------------------- Charts ------------------------------
+fetchJSON(`${apiBase}/products/top`).then(data => new Chart(
+  document.getElementById('productsChart'), {
+    type:'bar',
+    data:{labels:data.map(p=>p.product_name),
+          datasets:[{label:'Quantity Sold',
+                     data:data.map(p=>p.total_quantity),
+                     backgroundColor:'#4db6ac'}]},
+    options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}}}
+}));
+
+fetchJSON(`${apiBase}/sales/monthly`).then(data => new Chart(
+  document.getElementById('monthlyChart'), {
+    type:'bar',
+    data:{labels:data.map(m=>m.month),
+          datasets:[{label:'Units Sold',
+                     data:data.map(m=>m.volume),
+                     backgroundColor:'#4db6ac'}]},
+    options:{responsive:true}
+}));
+
+fetchJSON(`${apiBase}/regions/top`).then(data => new Chart(
+  document.getElementById('regionsChart'), {
+    type:'bar',
+    data:{labels:data.map(r=>r.region),
+          datasets:[{label:'Revenue',
+                     data:data.map(r=>r.total_revenue),
+                     backgroundColor:'#4db6ac'}]},
+    options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}}}
+}));
+</script>
+</body>
+</html>

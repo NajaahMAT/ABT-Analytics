@@ -1,0 +1,131 @@
+definitions:
+  response.CountrySummary:
+    properties:
+      country:
+        type: string
+      country_total_revenue:
+        type: number
+      products:
+        items:
+          $ref: '#/definitions/response.ProductRevenueSummary'
+        type: array
+    type: object
+  response.MonthlySales:
+    properties:
+      month:
+        type: string
+      volume:
+        type: integer
+    type: object
+  response.ProductRevenueSummary:
+    properties:
+      product_name:
+        type: string
+      total_revenue:
+        type: number
+      transaction_count:
+        type: integer
+    type: object
+  response.ProductStats:
+    properties:
+      product_name:
+        type: string
+      stock_quantity:
+        type: integer
+      total_quantity:
+        type: integer
+    type: object
+  response.RegionStats:
+    properties:
+      items_sold:
+        type: integer
+      region:
+        type: string
+      total_revenue:
+        type: number
+    type: object
+info:
+  contact: {}
+paths:
+  /api/products/top:
+    get:
+      consumes:
+      - application/json
+      description: Returns a fixed list of top 20 products globally
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/response.ProductStats'
+            type: array
+      summary: Get top products globally
+      tags:
+      - products
+  /api/regions/top:
+    get:
+      consumes:
+      - application/json
+      description: Returns a list of top 30 sales regions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/response.RegionStats'
+            type: array
+      summary: Get top sales regions
+      tags:
+      - regions
+  /api/revenue/country/summary:
+    get:
+      consumes:
+      - application/json
+      description: Returns a paginated list of countries with revenue & top products
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: size
+        type: integer
+      - description: Number of top products per country
+        in: query
+        name: products
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/response.CountrySummary'
+            type: array
+      summary: Get country revenue summary
+      tags:
+      - revenue
+  /api/sales/monthly:
+    get:
+      consumes:
+      - application/json
+      description: Returns aggregated monthly sales data
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/response.MonthlySales'
+            type: array
+      summary: Get monthly sales data
+      tags:
+      - sales
+swagger: "2.0"
